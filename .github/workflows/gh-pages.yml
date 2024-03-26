@@ -1,0 +1,66 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - ".github/workflows/gh-pages.yml"
+      - "README.md"
+      - "rebar.config"
+      - "src/**"
+  pull_request:
+    branches: ["master"]
+    paths:
+      - ".github/workflows/gh-pages.yml"
+      - "README.md"
+      - "rebar.config"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "gh-pages-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: 29
+          install-rebar3: true
+
+      - name: Build the documentation
+        run: rebar3 as docs ex_doc
+
+      - name: Upload the GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./_build/docs/site"
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy the documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

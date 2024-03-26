@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "release-${{ github.ref_name }}"
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out the tagged source code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: 29
+          install-rebar3: true
+
+      - name: Validate the tag format
+        run: |
+          set -e
+          if [[ ! "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a plain semantic version tag such as 0.0.1, got: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Validate the application version
+        run: |
+          set -e
+          app_version="$(sed -n 's/^.*{vsn, "\([^"]*\)"}.*$/\1/p' src/metrics_book.app.src)"
+          if [[ "$app_version" != "$RELEASE_TAG" ]]; then
+            echo "src/metrics_book.app.src version $app_version does not match tag $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Validate the changelog entry
+        run: |
+          set -e
+          grep -Fx "## $RELEASE_TAG" CHANGELOG.md >/dev/null
+
+      - name: Validate the README release metadata
+        run: |
+          set -e
+          if ! grep -F "version-$RELEASE_TAG-" README.md >/dev/null; then
+            echo "README.md current version badge does not match tag $RELEASE_TAG" >&2
+            exit 1
+          fi
+          if ! grep -F "{tag, \"$RELEASE_TAG\"}" README.md >/dev/null; then
+            echo "README.md install snippet does not pin tag $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Compile the library
+        run: rebar3 compile
+
+      - name: Run the regression tests
+        run: rebar3 eunit
+
+      - name: Build the documentation
+        run: rebar3 as docs ex_doc

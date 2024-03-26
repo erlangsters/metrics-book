@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - ".github/workflows/build.yml"
+      - "README.md"
+      - "rebar.config"
+      - "src/**"
+      - "test/**"
+  pull_request:
+    branches: ["master"]
+    paths:
+      - ".github/workflows/build.yml"
+      - "README.md"
+      - "rebar.config"
+      - "src/**"
+      - "test/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "build-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: OTP ${{ matrix.erlang }}
+    strategy:
+      fail-fast: false
+      matrix:
+        erlang: [27, 28, 29]
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: ${{ matrix.erlang }}
+          install-rebar3: true
+
+      - name: Compile the library
+        run: rebar3 compile
+
+      - name: Run the regression tests
+        run: rebar3 eunit

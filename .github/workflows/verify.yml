@@ -1,0 +1,71 @@
+name: Verify
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "verify-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  ubuntu:
+    name: Ubuntu drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: 29
+          install-rebar3: true
+
+      - name: Compile the library
+        run: rebar3 compile
+
+      - name: Run the regression tests
+        run: rebar3 eunit
+
+  macos:
+    name: macOS drift check
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: 29
+          install-rebar3: true
+
+      - name: Compile the library
+        run: rebar3 compile
+
+      - name: Run the regression tests
+        run: rebar3 eunit
+
+  documentation:
+    name: Documentation build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang/OTP
+        uses: erlangsters/setup-erlang-otp@v1
+        with:
+          erlang-version: 29
+          install-rebar3: true
+
+      - name: Build the documentation
+        run: rebar3 as docs ex_doc

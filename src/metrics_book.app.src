@@ -1,0 +1,18 @@
+{application, metrics_book, [
+  {description, "Local metrics API for simple BEAM applications."},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib,
+    book_storage
+  ]},
+  {env, []},
+  {modules, [
+    metrics_book
+  ]},
+  {licenses, ["MIT"]},
+  {links, [
+    {"GitHub", "https://github.com/erlangsters/metrics-book"}
+  ]}
+]}.
